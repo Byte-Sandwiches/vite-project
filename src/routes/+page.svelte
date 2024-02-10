@@ -1,7 +1,55 @@
 <script>
-	import Counter from './Counter.svelte';
-	import welcome from '$lib/images/svelte-welcome.webp';
-	import welcome_fallback from '$lib/images/svelte-welcome.png';
+    //@ts-nocheck
+	import { Button } from "$lib/components/ui/button";
+    import { toast } from "svelte-sonner";
+    import { realT } from "$lib/realtime";
+    import { onMount } from "svelte";
+    import GetMerchants from "$lib/components/GetMerchants.svelte";
+    import CheckMerchant from "$lib/components/CheckMerchant.svelte";
+
+    const csr_ = [
+        {name : "row" , data: ""},
+        {name : "col" , data: ""},
+        {name : "value" , data: ""}
+    ]
+
+    let pincode, mid = null
+    let doesServe = null
+
+    $: console.log(csr_);
+
+    let merchants = {
+        pincode: "",
+        data: ""
+    }
+
+    onMount(() => {
+        realT.connect();
+    })
+
+    realT.subscribe(`csr_${pincode}`, (err, ctx) => {
+        if(err) {
+            console.log(err);
+            toast.error(`Error ${err}`);
+            return
+        }
+
+        switch(ctx.data.type) {
+            case "get_merchants":
+                merchants.pincode = ctx.data.pin
+                merchants.data = ctx.data.merch
+                break;
+            case "check_merchant":
+                doesServe = ctx.data.does || false
+                break;
+        }
+    })
+
+    let checked = {
+        getMerchants: false,
+        checkMerchant: false
+    }
+
 </script>
 
 <head>
@@ -10,70 +58,42 @@
     <title>Sparse Matrix Search</title>
 </head>
 <body>
-    <div class="container">
-        <h1>Sparse Matrix Search</h1>
-        <form id="matrixForm">
-            <label for="matrix">Enter Sparse Matrix:</label>
-            <textarea id="matrix" name="matrix" rows="5" cols="50" placeholder="Enter your matrix here..."></textarea>
-            <label for="pincodes">Enter Pincode(s) to Search for:</label>
-            <input type="text" id="pincodes" name="pincodes" placeholder="Enter pincode(s) separated by comma...">
-            <button type="submit">Search</button>
+    <div class="container mx-auto my-8 p-8 bg-gray-800 text-white rounded-md shadow-md max-w-2xl">
+
+        <form id="matrixForm" class="mb-4">
+            <!-- i know so trivial lol -->
+            <Button on:click={() => {
+                checked.getMerchants=!checked.getMerchants
+                checked.checkMerchant=false
+            }} >Get Merchants</Button>
+
+            <Button on:click={() => {
+                checked.checkMerchant=!checked.checkMerchant
+                checked.getMerchants=false
+            }} >Check Merchant</Button>
+
+            {#if checked.getMerchants}
+                <GetMerchants {pincode} />
+            {:else if checked.checkMerchant}
+                <CheckMerchant {pincode} {mid} />
+            {/if}
         </form>
-        <div id="searchResults">
-            <!-- Search results will be displayed here -->
+
+        <div id="searchResults" class="mt-8 p-4 bg-gray-700 text-white rounded-md overflow-auto">
+            {#if merchants.data.length > 0}
+                Merchants ({merchants.data.length}) in Pincode {merchants.pincode}
+                {JSON.stringify(merchants.data)}
+            {/if}
+
+            {#if doesServe !== null }
+                {#if doesServe}
+                    Merchant is served by pincode
+                {:else}
+                    Merchant is not served by pincode
+                {/if}
+
+            {/if}
         </div>
     </div>
-   
+
 </body>
-
-<style>
-	body {
-    font-family: Arial, sans-serif;
-}
-
-.container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
-    text-align: center;
-}
-
-h1 {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-textarea,
-input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-}
-
-button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-button:hover {
-    background-color: #0056b3;
-}
-
-#searchResults {
-    margin-top: 20px;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-</style>
