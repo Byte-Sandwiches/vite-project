@@ -1,7 +1,70 @@
 <script>
-	import Counter from './Counter.svelte';
-	import welcome from '$lib/images/svelte-welcome.webp';
-	import welcome_fallback from '$lib/images/svelte-welcome.png';
+    //@ts-nocheck
+	import { Button } from "$lib/components/ui/button";
+    import { env } from "$env/dynamic/public";
+    import { toast } from "svelte-sonner";
+    import { realT } from "$lib/realtime";
+    import { onMount } from "svelte";
+
+    const csr_ = [
+        {name : "row" , data: ""},
+        {name : "col" , data: ""},
+        {name : "value" , data: ""}
+    ]
+
+    let pincode = null
+
+    $: console.log(csr_);
+
+    let merchants = {
+        pincode: "",
+        data: ""
+    }
+
+    async function sendReq() {
+        try {
+            if(!pincode) {
+                toast.error("Enter pincode")
+                return
+            }
+
+            const fd = new FormData()
+            fd.append("csr", JSON.stringify(csr_));
+
+            const res = await fetch(`${env.PUBLIC_API_URL}/${pincode}`, {
+                method : "POST" ,
+                body : fd
+            });
+
+            const data = await res.json();
+
+            if(data.status === "success") {
+                toast.info("Data processing...")
+            } else if(data.status === "error") {
+                toast.error(`Error processing data: ${data.msg}`)
+            }
+        } catch (err) {
+            toast.error("Error processing data...")
+            console.log(err)
+        }
+    }
+
+    onMount(() => {
+        realT.connect();
+    })
+
+    realT.subscribe("csr_", (err, ctx) => {
+        if(err) {
+            console.log(err);
+            toast.error(`Error ${err}`);
+            return
+        }
+        console.log(ctx);
+        merchants.pincode = ctx.data.pin
+        merchants.data = [...merchants.data, ...ctx.data.merch]
+    })
+
+    $ : console.log(merchants)
 </script>
 
 <head>
@@ -10,70 +73,32 @@
     <title>Sparse Matrix Search</title>
 </head>
 <body>
-    <div class="container">
-        <h1>Sparse Matrix Search</h1>
-        <form id="matrixForm">
-            <label for="matrix">Enter Sparse Matrix:</label>
-            <textarea id="matrix" name="matrix" rows="5" cols="50" placeholder="Enter your matrix here..."></textarea>
-            <label for="pincodes">Enter Pincode(s) to Search for:</label>
-            <input type="text" id="pincodes" name="pincodes" placeholder="Enter pincode(s) separated by comma...">
-            <button type="submit">Search</button>
+    <div class="container mx-auto my-8 p-8 bg-gray-800 text-white rounded-md shadow-md max-w-2xl">
+
+        <form id="matrixForm" class="mb-4">
+
+            {#each csr_ as val}
+                <label for={val.name} class="block mt-4 text-sm font-medium text-gray-300">Enter {val.name.toUpperCase()} Array</label>
+                <input type="text"
+                    id={val.name}
+                    class="w-full border p-2 rounded-md bg-gray-700 text-white mt-1"
+                    placeholder={`Enter ${val.name} array here...`}
+                    bind:value={val.data}
+                >
+            {/each}
+
+            <label for="pincodes" class="block mt-10 text-sm font-medium text-gray-300">Enter Pincode(s) to Search for:</label>
+            <input type="text" id="pincodes" bind:value={pincode} class="w-full border p-2 rounded-md bg-gray-700 text-white mt-1" placeholder="Enter pincode">
+
+            <Button class="mt-4" variant="default">Search</Button>
         </form>
-        <div id="searchResults">
-            <!-- Search results will be displayed here -->
+
+        <div id="searchResults" class="mt-8 p-4 bg-gray-700 text-white rounded-md overflow-auto">
+            {#if merchants.data.length > 0}
+                Merchants ({merchants.data.length}) in Pincode {merchants.pincode}
+                {JSON.stringify(merchants.data)}
+            {/if}
         </div>
     </div>
-   
+
 </body>
-
-<style>
-	body {
-    font-family: Arial, sans-serif;
-}
-
-.container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
-    text-align: center;
-}
-
-h1 {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-textarea,
-input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
-}
-
-button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-button:hover {
-    background-color: #0056b3;
-}
-
-#searchResults {
-    margin-top: 20px;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-</style>
