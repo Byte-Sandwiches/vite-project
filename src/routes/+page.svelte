@@ -85,7 +85,7 @@
                 {JSON.stringify(merchants.data)}
             {/if}
 
-            {#if doesServe !== null}
+            {#if doesServe !== null }
                 {#if doesServe}
                     Merchant is served by pincode
                 {:else}
